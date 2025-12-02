@@ -1,3 +1,21 @@
+// Package orchestr provides a high-level API for managing Docker containers
+// with network isolation, resource monitoring, and Redis persistence.
+//
+// Features:
+//   - Automatic network creation and persistence across restarts
+//   - Sequential IP allocation with conflict detection
+//   - Resource monitoring (CPU, memory, storage, network) with automatic limit enforcement
+//   - Redis-backed persistence for container IP mappings
+//   - Automatic container recovery if network is deleted
+//
+// Example usage:
+//
+//	config := orchestr.DefaultConfig()
+//	orch, _ := orchestr.New(config)
+//	defer orch.Close()
+//
+//	orch.Initialize(ctx)
+//	containerID, _ := orch.CreateContainer(ctx, opts)
 package orchestr
 
 import (
@@ -11,7 +29,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Orchestrator manages Docker containers with network isolation and resource monitoring
+// Orchestrator manages Docker containers with network isolation and resource monitoring.
+// It provides methods for creating, managing, and monitoring containers with automatic
+// IP allocation, resource limits, and persistence via Redis.
 type Orchestrator struct {
 	config       *Config
 	dockerClient *client.Client

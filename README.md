@@ -13,7 +13,7 @@ A Go package for managing Docker containers with network isolation, resource mon
 ## Installation
 
 ```bash
-go get github.com/KilluaDB/orchest
+go get github.com/KilluaDB/Orchestrator/orchestr
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ package main
 
 import (
     "context"
-    "github.com/KilluaDB/orchest/orchestr"
+    "github.com/KilluaDB/Orchestrator/orchestr"
     "github.com/moby/moby/api/types/container"
 )
 

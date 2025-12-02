@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/KilluaDB/orchest/orchestr"
+	"github.com/KilluaDB/Orchestrator/orchestr"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 )

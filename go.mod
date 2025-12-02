@@ -1,4 +1,4 @@
-module github.com/KilluaDB/orchest
+module github.com/KilluaDB/Orchestrator
 
 go 1.24.0
 
