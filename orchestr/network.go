@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/netip"
-	"strings"
 
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -74,25 +73,29 @@ func (o *Orchestrator) ensureNetwork(ctx context.Context, subnet netip.Prefix) (
 		},
 	})
 	if err != nil {
-		// Handle "already exists" error gracefully
-		// This can happen in race conditions where network was created between our check and create
-		errMsg := strings.ToLower(err.Error())
-		if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "conflict") {
-			// Network was created by another process, try to find it again
-			networks, listErr := o.dockerClient.NetworkList(ctx, client.NetworkListOptions{
-				Filters: client.Filters{}.Add("name", o.config.NetworkName),
-			})
-			if listErr == nil && len(networks.Items) > 0 {
-				networkID := networks.Items[0].ID
-				fmt.Printf("Network was created concurrently, using existing network (ID: %s)\n", networkID[:12])
+		// When NetworkCreate fails (e.g., network already exists), check if the network exists by name
+		// This handles race conditions where network was created between our check and create
+		networks, listErr := o.dockerClient.NetworkList(ctx, client.NetworkListOptions{
+			Filters: client.Filters{}.Add("name", o.config.NetworkName),
+		})
+		if listErr == nil && len(networks.Items) > 0 {
+			networkID := networks.Items[0].ID
+			fmt.Printf("Network already exists, using existing network %s (ID: %s)\n", o.config.NetworkName, networkID[:12])
 
-				// Update Redis
-				if o.redisClient != nil {
-					o.redisClient.Set(ctx, networkKey, networkID, 0)
+			// Update Redis only if it doesn't exist in Redis
+			if o.redisClient != nil {
+				existingID, err := o.redisClient.Get(ctx, networkKey).Result()
+				if err != nil || existingID == "" {
+					// Network ID doesn't exist in Redis, save it
+					if err := o.redisClient.Set(ctx, networkKey, networkID, 0).Err(); err != nil {
+						log.Printf("Warning: Failed to save network ID to Redis: %v", err)
+					} else {
+						fmt.Printf("Saved network ID to Redis\n")
+					}
 				}
-
-				return networkID, nil
 			}
+
+			return networkID, nil
 		}
 		return "", fmt.Errorf("network create: %w", err)
 	}
