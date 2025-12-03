@@ -5,33 +5,59 @@ import (
 	"fmt"
 	"log"
 	"net/netip"
+	"strings"
 
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 )
 
-// ensureNetwork ensures the network exists, checking Redis first for persistence
+// ensureNetwork ensures the network exists, checking Docker API first, then Redis for persistence
 func (o *Orchestrator) ensureNetwork(ctx context.Context, subnet netip.Prefix) (string, error) {
 	fmt.Printf("Ensuring network %s...\n", o.config.NetworkName)
 
 	networkKey := "network:id:" + o.config.NetworkName
 
-	// On app restart: Check Redis for stored network ID first
+	// Step 1: Check if network exists in Docker using NetworkList
+	networks, err := o.dockerClient.NetworkList(ctx, client.NetworkListOptions{
+		Filters: client.Filters{}.Add("name", o.config.NetworkName),
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to list networks: %v", err)
+	} else if len(networks.Items) > 0 {
+		// Network exists in Docker, use it
+		networkID := networks.Items[0].ID
+		fmt.Printf("Found existing network %s (ID: %s) in Docker\n", o.config.NetworkName, networkID[:12])
+
+		// Update Redis with the network ID if we have a Redis client
+		if o.redisClient != nil {
+			if err := o.redisClient.Set(ctx, networkKey, networkID, 0).Err(); err != nil {
+				log.Printf("Warning: Failed to save network ID to Redis: %v", err)
+			} else {
+				fmt.Printf("Updated network ID in Redis\n")
+			}
+		}
+
+		return networkID, nil
+	}
+
+	// Step 2: Network doesn't exist in Docker, check Redis for stored network ID
 	if o.redisClient != nil {
 		networkID, err := o.redisClient.Get(ctx, networkKey).Result()
 		if err == nil && networkID != "" {
-			// Verify network still exists in Docker
+			// Verify network still exists in Docker by ID
 			_, err := o.dockerClient.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
 			if err == nil {
 				fmt.Printf("Reusing existing network %s (ID: %s) from Redis\n", o.config.NetworkName, networkID[:12])
 				return networkID, nil
 			}
-			// Network doesn't exist in Docker, remove stale entry from Redis and create new one
-			log.Printf("Network ID in Redis doesn't exist in Docker, creating new network")
+			// Network doesn't exist in Docker, remove stale entry from Redis
+			log.Printf("Network ID in Redis doesn't exist in Docker, removing stale entry")
 			o.redisClient.Del(ctx, networkKey)
 		}
 	}
 
+	// Step 3: Network doesn't exist, create it
+	fmt.Printf("Creating new network %s...\n", o.config.NetworkName)
 	enableIPv4 := true
 
 	result, err := o.dockerClient.NetworkCreate(ctx, o.config.NetworkName, client.NetworkCreateOptions{
@@ -48,6 +74,26 @@ func (o *Orchestrator) ensureNetwork(ctx context.Context, subnet netip.Prefix) (
 		},
 	})
 	if err != nil {
+		// Handle "already exists" error gracefully
+		// This can happen in race conditions where network was created between our check and create
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "conflict") {
+			// Network was created by another process, try to find it again
+			networks, listErr := o.dockerClient.NetworkList(ctx, client.NetworkListOptions{
+				Filters: client.Filters{}.Add("name", o.config.NetworkName),
+			})
+			if listErr == nil && len(networks.Items) > 0 {
+				networkID := networks.Items[0].ID
+				fmt.Printf("Network was created concurrently, using existing network (ID: %s)\n", networkID[:12])
+
+				// Update Redis
+				if o.redisClient != nil {
+					o.redisClient.Set(ctx, networkKey, networkID, 0)
+				}
+
+				return networkID, nil
+			}
+		}
 		return "", fmt.Errorf("network create: %w", err)
 	}
 
@@ -60,6 +106,6 @@ func (o *Orchestrator) ensureNetwork(ctx context.Context, subnet netip.Prefix) (
 		}
 	}
 
+	fmt.Printf("Successfully created network %s (ID: %s)\n", o.config.NetworkName, result.ID[:12])
 	return result.ID, nil
 }
-

@@ -143,4 +143,3 @@ func (o *Orchestrator) stopContainerWithReason(ctx context.Context, containerID,
 	log.Printf("Container %s (%s) stopped due to resource limit violation: %s", containerID[:12], containerName, reason)
 	fmt.Printf("\n[RESOURCE LIMIT VIOLATION] Container %s stopped: %s\n", containerID[:12], reason)
 }
-

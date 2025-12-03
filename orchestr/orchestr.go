@@ -33,11 +33,11 @@ import (
 // It provides methods for creating, managing, and monitoring containers with automatic
 // IP allocation, resource limits, and persistence via Redis.
 type Orchestrator struct {
-	config       *Config
-	dockerClient *client.Client
-	redisClient  *redis.Client
-	ipAllocator  *IPAllocator
-	assignments  map[string]string // containerID -> IP
+	config        *Config
+	dockerClient  *client.Client
+	redisClient   *redis.Client
+	ipAllocator   *IPAllocator
+	assignments   map[string]string // containerID -> IP
 	assignmentsMu sync.RWMutex
 }
 
@@ -196,7 +196,7 @@ func (o *Orchestrator) GetContainerIPFromRedis(ctx context.Context, containerID 
 func (o *Orchestrator) ListContainers() map[string]string {
 	o.assignmentsMu.RLock()
 	defer o.assignmentsMu.RUnlock()
-	
+
 	result := make(map[string]string)
 	for id, ip := range o.assignments {
 		result[id] = ip
@@ -211,4 +211,3 @@ func (o *Orchestrator) Close() error {
 	}
 	return nil
 }
-

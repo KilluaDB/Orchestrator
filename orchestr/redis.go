@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/netip"
 
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // syncContainerDataFromDocker queries Docker engine (source of truth) for all containers
@@ -160,4 +160,3 @@ func (o *Orchestrator) syncContainerDataFromDocker(ctx context.Context, networkI
 	fmt.Println()
 	return nil
 }
-

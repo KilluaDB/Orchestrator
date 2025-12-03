@@ -33,13 +33,13 @@ type Config struct {
 	DockerHost string // Docker daemon socket (empty = use default)
 
 	// Redis configuration
-	RedisAddr     string // Redis server address (default: "localhost:6379")
+	RedisAddr      string // Redis server address (default: "localhost:6379")
 	RedisKeyPrefix string // Prefix for Redis keys (default: "container:ip:")
 
 	// Network configuration
-	NetworkName  string // Network name (default: "orchestr-postgres-net")
-	SubnetCIDR   string // Subnet CIDR (default: "172.28.0.0/16")
-	Gateway      string // Gateway IP (default: "172.28.0.1")
+	NetworkName string // Network name (default: "orchestr-postgres-net")
+	SubnetCIDR  string // Subnet CIDR (default: "172.28.0.0/16")
+	Gateway     string // Gateway IP (default: "172.28.0.1")
 
 	// Volume configuration
 	VolumePrefix string // Prefix for volume names (default: "orchestr-postgres-data")
@@ -51,13 +51,12 @@ type Config struct {
 // DefaultConfig returns a configuration with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		RedisAddr:      "localhost:6379",
-		RedisKeyPrefix: "container:ip:",
-		NetworkName:    "orchestr-postgres-net",
-		SubnetCIDR:     "172.28.0.0/16",
-		Gateway:        "172.28.0.1",
-		VolumePrefix:   "orchestr-postgres-data",
+		RedisAddr:       "localhost:6379",
+		RedisKeyPrefix:  "container:ip:",
+		NetworkName:     "orchestr-postgres-net",
+		SubnetCIDR:      "172.28.0.0/16",
+		Gateway:         "172.28.0.1",
+		VolumePrefix:    "orchestr-postgres-data",
 		MonitorInterval: 5,
 	}
 }
-
