@@ -16,7 +16,7 @@
 //
 //	orch.Initialize(ctx)
 //	containerID, _ := orch.CreateContainer(ctx, opts)
-package Orchestrator
+package orchestrator
 
 import (
 	"context"

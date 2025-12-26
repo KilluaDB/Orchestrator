@@ -1,4 +1,4 @@
-package Orchestrator
+package orchestrator
 
 import (
 	"github.com/moby/moby/api/types/container"
