@@ -21,7 +21,6 @@ package orchestr
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/netip"
 	"sync"
 
@@ -71,16 +70,17 @@ func New(config *Config) (*Orchestrator, error) {
 	// Test Redis connection
 	ctx := context.Background()
 	if err := orch.redisClient.Ping(ctx).Err(); err != nil {
-		log.Printf("Warning: Redis connection failed: %v. Continuing without Redis persistence.", err)
-		orch.redisClient = nil
+		return nil, fmt.Errorf("redis connection failed: %w", err)
 	}
 
 	return orch, nil
 }
 
-// Initialize sets up the network and syncs container data from Docker
+// Initialize sets up the network and syncs container data from Docker.
+// It ensures the network exists (storing NetworkID in Redis for persistence),
+// then reconnects and restarts all stopped containers on the network.
 func (o *Orchestrator) Initialize(ctx context.Context) error {
-	// Step 1: Ensure network exists
+	// Step 1: Ensure network exists and NetworkID is stored in Redis for persistence
 	subnet, err := netip.ParsePrefix(o.config.SubnetCIDR)
 	if err != nil {
 		return fmt.Errorf("parse subnet: %w", err)
@@ -91,11 +91,13 @@ func (o *Orchestrator) Initialize(ctx context.Context) error {
 		return fmt.Errorf("ensure network: %w", err)
 	}
 
-	// Step 2: Sync container data from Docker to Redis
-	if o.redisClient != nil {
-		if err := o.syncContainerDataFromDocker(ctx, networkID); err != nil {
-			log.Printf("Warning: Failed to sync container data from Docker: %v", err)
-		}
+	// Step 2: Reconnect and restart all stopped containers on the network
+	// This uses Docker as the source of truth and syncs to Redis
+	if err := o.checkRedisConnection(ctx); err != nil {
+		return fmt.Errorf("redis client unavailable: %w", err)
+	}
+	if err := o.syncContainerDataFromDocker(ctx, networkID); err != nil {
+		return fmt.Errorf("failed to sync container data from Docker: %w", err)
 	}
 
 	// Step 3: Initialize IP allocator based on existing containers
@@ -178,8 +180,8 @@ func (o *Orchestrator) GetContainerIP(containerID string) (string, bool) {
 
 // GetContainerIPFromRedis retrieves the IP address from Redis
 func (o *Orchestrator) GetContainerIPFromRedis(ctx context.Context, containerID string) (string, error) {
-	if o.redisClient == nil {
-		return "", fmt.Errorf("redis client not available")
+	if err := o.checkRedisConnection(ctx); err != nil {
+		return "", err
 	}
 	key := o.config.RedisKeyPrefix + containerID
 	ip, err := o.redisClient.Get(ctx, key).Result()
@@ -202,6 +204,33 @@ func (o *Orchestrator) ListContainers() map[string]string {
 		result[id] = ip
 	}
 	return result
+}
+
+// checkRedisConnection verifies that Redis client is available and connected
+func (o *Orchestrator) checkRedisConnection(ctx context.Context) error {
+	if o.redisClient == nil {
+		return fmt.Errorf("redis client not available")
+	}
+	if err := o.redisClient.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("redis client connection failed: %w", err)
+	}
+	return nil
+}
+
+// GetNetworkIDFromRedis retrieves the NetworkID from Redis persistence
+func (o *Orchestrator) GetNetworkIDFromRedis(ctx context.Context) (string, error) {
+	if err := o.checkRedisConnection(ctx); err != nil {
+		return "", err
+	}
+	networkKey := "network:id:" + o.config.NetworkName
+	networkID, err := o.redisClient.Get(ctx, networkKey).Result()
+	if err == redis.Nil {
+		return "", fmt.Errorf("network %s not found in Redis", o.config.NetworkName)
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get network ID from Redis: %w", err)
+	}
+	return networkID, nil
 }
 
 // Close closes the orchestrator and cleans up resources

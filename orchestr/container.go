@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
@@ -81,7 +80,9 @@ func (o *Orchestrator) createContainer(ctx context.Context, opts ContainerOption
 		return "", fmt.Errorf("container create: %w", err)
 	}
 
-	o.storeAssignment(resp.ID, ipAddr.String())
+	if err := o.storeAssignment(resp.ID, ipAddr.String()); err != nil {
+		return "", fmt.Errorf("failed to store container assignment: %w", err)
+	}
 	return resp.ID, nil
 }
 
@@ -103,21 +104,22 @@ func (o *Orchestrator) startContainer(ctx context.Context, containerID string, o
 }
 
 // storeAssignment stores container ID to IP mapping in memory and Redis
-func (o *Orchestrator) storeAssignment(containerID, ip string) {
+func (o *Orchestrator) storeAssignment(containerID, ip string) error {
 	o.assignmentsMu.Lock()
 	defer o.assignmentsMu.Unlock()
 	o.assignments[containerID] = ip
 
-	// Store in Redis if available
-	if o.redisClient != nil {
-		ctx := context.Background()
-		key := o.config.RedisKeyPrefix + containerID
-		if err := o.redisClient.Set(ctx, key, ip, 0).Err(); err != nil {
-			log.Printf("Warning: Failed to store assignment in Redis: %v", err)
-		} else {
-			fmt.Printf("Stored container %s -> %s in Redis\n", containerID[:12], ip)
-		}
+	// Store in Redis
+	ctx := context.Background()
+	if err := o.checkRedisConnection(ctx); err != nil {
+		return fmt.Errorf("redis client unavailable: %w", err)
 	}
+	key := o.config.RedisKeyPrefix + containerID
+	if err := o.redisClient.Set(ctx, key, ip, 0).Err(); err != nil {
+		return fmt.Errorf("failed to store assignment in Redis: %w", err)
+	}
+	fmt.Printf("Stored container %s -> %s in Redis\n", containerID[:12], ip)
+	return nil
 }
 
 func envMapToSlice(env map[string]string) []string {
