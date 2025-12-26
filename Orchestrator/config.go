@@ -1,4 +1,4 @@
-package orchestr
+package Orchestrator
 
 import (
 	"github.com/moby/moby/api/types/container"
@@ -37,12 +37,12 @@ type Config struct {
 	RedisKeyPrefix string // Prefix for Redis keys (default: "container:ip:")
 
 	// Network configuration
-	NetworkName string // Network name (default: "orchestr-postgres-net")
+	NetworkName string // Network name (default: "Orchestrator-postgres-net")
 	SubnetCIDR  string // Subnet CIDR (default: "172.28.0.0/16")
 	Gateway     string // Gateway IP (default: "172.28.0.1")
 
 	// Volume configuration
-	VolumePrefix string // Prefix for volume names (default: "orchestr-postgres-data")
+	VolumePrefix string // Prefix for volume names (default: "Orchestrator-postgres-data")
 
 	// Monitoring configuration
 	MonitorInterval int // Resource monitoring interval in seconds (default: 5)
@@ -53,10 +53,10 @@ func DefaultConfig() *Config {
 	return &Config{
 		RedisAddr:       "localhost:6379",
 		RedisKeyPrefix:  "container:ip:",
-		NetworkName:     "orchestr-postgres-net",
+		NetworkName:     "Orchestrator-postgres-net",
 		SubnetCIDR:      "172.28.0.0/16",
 		Gateway:         "172.28.0.1",
-		VolumePrefix:    "orchestr-postgres-data",
+		VolumePrefix:    "Orchestrator-postgres-data",
 		MonitorInterval: 5,
 	}
 }

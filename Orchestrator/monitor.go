@@ -1,4 +1,4 @@
-package orchestr
+package Orchestrator
 
 import (
 	"context"

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/KilluaDB/Orchestrator/orchestr"
+	"github.com/KilluaDB/Orchestrator/Orchestrator"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 )
 
 const (
 	defaultImage        = "postgres:16-alpine"
-	defaultContainer    = "orchestr-postgres"
+	defaultContainer    = "Orchestrator-postgres"
 	defaultVolumeTarget = "/var/lib/postgresql/data"
 	defaultPort         = "5432"
 )
@@ -21,8 +21,8 @@ func main() {
 	ctx := context.Background()
 
 	// Create orchestrator with default config
-	config := orchestr.DefaultConfig()
-	orch, err := orchestr.New(config)
+	config := Orchestrator.DefaultConfig()
+	orch, err := Orchestrator.New(config)
 	if err != nil {
 		log.Fatalf("Failed to create orchestrator: %v", err)
 	}
@@ -58,9 +58,9 @@ func main() {
 	}
 }
 
-func createPostgresOptions() orchestr.ContainerOptions {
+func createPostgresOptions() Orchestrator.ContainerOptions {
 	memoryLimit := int64(512 * 1024 * 1024) // 512MiB
-	return orchestr.ContainerOptions{
+	return Orchestrator.ContainerOptions{
 		Name:  fmt.Sprintf("%s-%s", defaultContainer, uuid.NewString()),
 		Image: defaultImage,
 		Env: map[string]string{
@@ -75,7 +75,7 @@ func createPostgresOptions() orchestr.ContainerOptions {
 			CPUQuota:   100000,
 			CPUShares:  1024,
 		},
-		ResourceLimits: orchestr.ResourceLimits{
+		ResourceLimits: Orchestrator.ResourceLimits{
 			CPUQuota:    100000,
 			CPUShares:   1024,
 			Memory:      memoryLimit,

@@ -1,4 +1,4 @@
-// Package orchestr provides a high-level API for managing Docker containers
+// Package Orchestrator provides a high-level API for managing Docker containers
 // with network isolation, resource monitoring, and Redis persistence.
 //
 // Features:
@@ -10,13 +10,13 @@
 //
 // Example usage:
 //
-//	config := orchestr.DefaultConfig()
-//	orch, _ := orchestr.New(config)
+//	config := Orchestrator.DefaultConfig()
+//	orch, _ := Orchestrator.New(config)
 //	defer orch.Close()
 //
 //	orch.Initialize(ctx)
 //	containerID, _ := orch.CreateContainer(ctx, opts)
-package orchestr
+package Orchestrator
 
 import (
 	"context"
